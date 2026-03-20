@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScolTool</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f1f3f4;
+  --card:#ffffff;
+  --text:#202124;
+  --accent:#1a73e8;
+  --border:#dadce0;
+}
+
+body{
+  margin:0;
+  font-family:'Google Sans', Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+header{
+  padding:16px;
+  text-align:center;
+  font-size:22px;
+  font-weight:500;
+}
+
+.container{
+  max-width:500px;
+  margin:auto;
+  padding:20px;
+}
+
+.tabs{
+  display:flex;
+  border-bottom:1px solid var(--border);
+}
+
+.tabs button{
+  flex:1;
+  padding:12px;
+  background:none;
+  border:none;
+  font-weight:500;
+  cursor:pointer;
+  color:#5f6368;
+}
+
+.tabs button.active{
+  color:var(--accent);
+  border-bottom:2px solid var(--accent);
+}
+
+.card{
+  background:var(--card);
+  padding:20px;
+  margin-top:20px;
+  border-radius:12px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.1);
+}
+
+input{
+  width:100%;
+  padding:12px;
+  margin:10px 0;
+  border-radius:8px;
+  border:1px solid var(--border);
+  font-size:14px;
+}
+
+input:focus{
+  outline:none;
+  border:1px solid var(--accent);
+}
+
+button.calc{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  background:var(--accent);
+  color:white;
+  font-weight:500;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+button.calc:hover{
+  background:#1669c1;
+}
+
+.result{
+  margin-top:20px;
+  font-size:28px;
+  text-align:center;
+  font-weight:500;
+  color:var(--accent);
+}
+
+.hidden{display:none}
+
+.theme{
+  margin-top:20px;
+  text-align:center;
+}
+
+.theme button{
+  background:none;
+  border:none;
+  color:var(--accent);
+  cursor:pointer;
+  font-weight:500;
+}
+
+.dark{
+  --bg:#202124;
+  --card:#303134;
+  --text:#e8eaed;
+  --border:#5f6368;
+}
+</style>
+</head>
+<body>
+
+<header>ScolTool</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <button id="tab1" class="active" onclick="show('media')">Media</button>
+    <button id="tab2" onclick="show('verifica')">Verifica</button>
+  </div>
+
+  <div id="media" class="card">
+    <input id="voti" placeholder="Inserisci voti: 6,7,8">
+    <button class="calc" onclick="media()">Calcola</button>
+    <div id="outMedia" class="result"></div>
+  </div>
+
+  <div id="verifica" class="card hidden">
+    <input id="maxP" placeholder="Punti massimi">
+    <input id="minV" placeholder="Voto minimo">
+    <input id="maxV" placeholder="Voto massimo">
+    <input id="punti" placeholder="Punti ottenuti">
+    <button class="calc" onclick="voto()">Calcola</button>
+    <div id="outVoto" class="result"></div>
+  </div>
+
+  <div class="theme">
+    <button onclick="tema()">Tema scuro / chiaro</button>
+  </div>
+
+</div>
+
+<script>
+function show(p){
+  document.getElementById('media').classList.add('hidden');
+  document.getElementById('verifica').classList.add('hidden');
+  document.getElementById(p).classList.remove('hidden');
+
+  document.getElementById('tab1').classList.remove('active');
+  document.getElementById('tab2').classList.remove('active');
+  document.getElementById(p==='media'?'tab1':'tab2').classList.add('active');
+}
+
+function media(){
+  let v=document.getElementById('voti').value.split(',').map(Number);
+  let m=v.reduce((a,b)=>a+b,0)/v.length;
+  document.getElementById('outMedia').innerText=m.toFixed(2);
+}
+
+function voto(){
+  let maxP=+document.getElementById('maxP').value;
+  let minV=+document.getElementById('minV').value;
+  let maxV=+document.getElementById('maxV').value;
+  let p=+document.getElementById('punti').value;
+
+  let v=minV+(p/maxP)*(maxV-minV);
+
+  let out=document.getElementById('outVoto');
+  let i=0;
+  let anim=setInterval(()=>{
+    i+=0.1;
+    if(i>=v){clearInterval(anim);out.innerText=v.toFixed(2);} 
+    else out.innerText=i.toFixed(2);
+  },10);
+}
+
+function tema(){
+  document.body.classList.toggle('dark');
+}
+</script>
+
+</body>
+</html>
