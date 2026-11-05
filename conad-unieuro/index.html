@@ -413,16 +413,36 @@ window.cloudAuth=async function(mode){if(cloudBusy)return;const email=byId('clou
  cloudBusy=true;state('Collegamento in corso…');try{
   const path=mode==='signup'?'/auth/v1/signup':'/auth/v1/token?grant_type=password';
   const result=await request(path,{method:'POST',body:{email,password}});
-  if(!result.access_token){state('Account creato. Controlla la tua email per confermare la registrazione, poi accedi.');return}
+  if(!result.access_token){state('Account creato. Controlla la tua email. Puoi confermare copiando il link nel campo qui sotto, senza aprire localhost.');return}
   saveSession({access_token:result.access_token,refresh_token:result.refresh_token,expires_at:Date.now()+(result.expires_in||3600)*1000,user_id:result.user?.id,email:result.user?.email||email});
   openCloudBackup();state('Accesso effettuato');await cloudAutoCheck();
  }catch(e){cloudError(e)}finally{cloudBusy=false}}
+window.cloudResendConfirmation=async function(){
+ if(cloudBusy)return;const email=byId('cloudEmail')?.value?.trim();if(!email){state('Inserisci prima la tua email',true);return}
+ cloudBusy=true;state('Richiesta di nuova email…');try{
+  await request('/auth/v1/resend',{method:'POST',body:{type:'signup',email}});
+  state('Se la registrazione è ancora in attesa, riceverai un nuovo link. Non aprirlo: copia l’indirizzo del pulsante nell’email e incollalo qui sotto. Se hai già confermato, premi ACCEDI.');
+ }catch(e){cloudError(e)}finally{cloudBusy=false}
+};
+window.cloudVerifyConfirmation=async function(){
+ if(cloudBusy)return;const raw=byId('cloudConfirmLink')?.value?.trim();if(!raw){state('Incolla il link completo ricevuto via email',true);return}
+ let token;try{
+  const u=new URL(raw.replace(/&amp;/g,'&').replace(/\\&/g,'&'));
+  if(u.origin!==config().url||u.pathname!=='/auth/v1/verify'||u.searchParams.get('type')!=='signup')throw Error('Incolla il link di conferma Supabase ricevuto via email');
+  token=u.searchParams.get('token');if(!token||!/^[A-Za-z0-9_-]{20,256}$/.test(token))throw Error('Token di conferma non valido');
+ }catch(e){cloudError(e);return}
+ cloudBusy=true;state('Conferma email in corso…');try{
+  const r=await request('/auth/v1/verify',{method:'POST',body:{token_hash:token,type:'signup'}});
+  if(r.access_token){saveSession({access_token:r.access_token,refresh_token:r.refresh_token,expires_at:Date.now()+(r.expires_in||3600)*1000,user_id:r.user?.id,email:r.user?.email});openCloudBackup();state('Email confermata! Accesso effettuato.');await cloudAutoCheck()}
+  else state('Email confermata! Ora premi ACCEDI con la tua email e password.');
+ }catch(e){state('Il link potrebbe essere scaduto o già utilizzato. Prova ACCEDI: la tua email potrebbe essere già confermata. Se necessario, richiedi un nuovo link.',true)}finally{cloudBusy=false}
+};
 window.cloudLogout=async function(){try{if(cloudSession)await request('/auth/v1/logout',{method:'POST',auth:true})}catch(e){}saveSession(null);openCloudBackup();state('Disconnesso')};
 window.openCloudBackup=function(){const c=config();const signed=!!cloudSession;showModal(`<div class="cloud-panel" id="cloudPanel"><h2>🔐 PANNELLO ADMIN BACKUP CLOUD</h2><p class="cloud-note">Conserva gli <b>ultimi 7 backup</b> di CONAD + UNIEURO. Salvataggio automatico ogni 24 ore <b>quando il sito è aperto</b>, oppure manuale. Il ripristino sostituisce i dati di questo browser.</p>
  <div class="cloud-state" id="cloudState"></div>
  ${!isConfigured()?`<h3>1 · Collega il tuo archivio Supabase</h3><label for="cloudUrl">Project URL (https://…supabase.co)</label><input id="cloudUrl" autocomplete="off" placeholder="https://xxxxx.supabase.co" value="${htmlEscape(c.url)}"><label for="cloudKey">Chiave pubblica anon / publishable</label><input id="cloudKey" autocomplete="off" placeholder="sb_publishable_… oppure eyJ…" value="${htmlEscape(c.key)}"><p class="cloud-muted">Non inserire mai service_role o chiavi segrete. La sicurezza è garantita dalle regole RLS del database.</p><div class="cloud-actions"><button class="btn primary" onclick="cloudSaveConfig()">SALVA COLLEGAMENTO</button></div>`:
  signed?`<h3>Archivio collegato</h3><p class="cloud-muted">Account: <b>${htmlEscape(cloudSession.email)}</b></p><div class="cloud-actions"><button class="btn primary" onclick="cloudSaveNow()">☁ SALVA ORA</button><button class="btn" onclick="cloudLoadList()">↻ AGGIORNA ELENCO</button><button class="btn" onclick="cloudLogout()">ESCI</button></div><h3>Ultimi backup disponibili</h3><div id="cloudList"><p class="cloud-muted">Caricamento…</p></div><p class="cloud-muted">Ripristina un backup selezionando la sua data. Prima del ripristino verrà creata una copia di sicurezza dello stato attuale.</p>`:
- `<h3>2 · Accedi all'archivio privato</h3><label for="cloudEmail">Email</label><input id="cloudEmail" type="email" autocomplete="username" placeholder="La tua email"><label for="cloudPassword">Password Supabase</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Password (non salvata)"><div class="cloud-actions"><button class="btn primary" onclick="cloudAuth('login')">ACCEDI</button><button class="btn" onclick="cloudAuth('signup')">CREA ACCOUNT</button></div><p class="cloud-muted">L'account è protetto da Supabase Auth. Puoi disabilitare nuove registrazioni nel pannello Supabase dopo aver creato il tuo account.</p>`}
+ `<h3>2 · Accedi all'archivio privato</h3><label for="cloudEmail">Email</label><input id="cloudEmail" type="email" autocomplete="username" placeholder="La tua email"><label for="cloudPassword">Password Supabase</label><input id="cloudPassword" type="password" autocomplete="current-password" placeholder="Password (non salvata)"><div class="cloud-actions"><button class="btn primary" onclick="cloudAuth('login')">ACCEDI</button><button class="btn" onclick="cloudAuth('signup')">CREA ACCOUNT</button></div><p class="cloud-muted">Se la conferma email apre <b>localhost:3000</b>, torna su questo sito e premi <b>ACCEDI</b>: la verifica potrebbe essere già riuscita. Se non funziona, usa le opzioni qui sotto.</p><div class="cloud-actions"><button class="btn" onclick="cloudResendConfirmation()">✉ RINVIA EMAIL DI CONFERMA</button></div><label for="cloudConfirmLink">Conferma direttamente qui (senza aprire localhost)</label><input id="cloudConfirmLink" type="url" autocomplete="off" placeholder="Incolla il link completo copiato dall’email"><div class="cloud-actions"><button class="btn" onclick="cloudVerifyConfirmation()">✓ CONFERMA EMAIL QUI</button></div><p class="cloud-muted">Copia l’indirizzo del pulsante ricevuto nell’email, senza cliccarlo, e incollalo nel campo sopra. Il link è personale: non condividerlo.</p>`}
  <p class="cloud-muted">I dati restano anche sul dispositivo. Il piano cloud gratuito ha limiti e non sostituisce un backup JSON esportato periodicamente.</p></div>`);
  if(signed&&isConfigured())cloudLoadList();
 };
